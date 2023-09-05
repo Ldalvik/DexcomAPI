@@ -1,0 +1,13 @@
+{
+  "name": "DexcomAPI",
+  "version": "1.0",
+  "keywords": "wifi, esp8266",
+  "description": "This library was made for the Feather HUZZAH ESP6266. It controls a 320x240 TFT LCD, RGB LED, and Piezo speaker.",
+  "repository":
+  {
+    "type": "git",
+    "url": "https://github.com/Ldalvik/GlucoseMonitor-HardwareController.git"
+  },
+  "frameworks": "arduino",
+  "platforms": ["feather", "huzzah", "espressif8266", "espressif32"]
+}
