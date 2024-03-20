@@ -1,10 +1,16 @@
 #include "Dexcom.h"
 
-Dexcom::Dexcom(const char *username, const char *password, bool ous)
+Dexcom::Dexcom(const char *username, const char *password, bool ous) 
+: _username(username), _password(password)
 {
-  _username = username;
-  _password = password;
+  if (ous)
+  {
+    _base_url = DEXCOM_BASE_URL_OUS;
+  }
+}
 
+Dexcom::Dexcom(bool ous)
+{
   if (ous)
   {
     _base_url = DEXCOM_BASE_URL_OUS;
@@ -67,7 +73,7 @@ String Dexcom::post(const char *url, const char *postData)
 
   if (!client.connect(_base_url.c_str(), 443))
   {
-    Serial.println("Connection to host failed");
+    //Serial.println("Connection to host failed");
     return "";
   }
 
@@ -97,7 +103,6 @@ String Dexcom::post(const char *url, const char *postData)
   client.stop();
 
   int responseCode = response.substring(response.indexOf(" ") + 1, response.indexOf(" ") + 4).toInt();
-
   if (responseCode == 500)
   {
     String json = response.substring(response.indexOf('{'), response.lastIndexOf('}'));
@@ -141,7 +146,7 @@ String Dexcom::post(const char *url, const char *postData)
   return response;
 }
 
-// bool Dexcom::updateList(int minutes, int maxCount)
+// bool Dexcom::getGlucose(int minutes, int maxCount)
 // {
 //   String postData = "{\"sessionId\":\"" + _session_id +
 //                     "\",\"minutes\":" + minutes + ",\"maxCount\":" + maxCount + "}";
@@ -166,10 +171,12 @@ String Dexcom::post(const char *url, const char *postData)
 //   for (JsonVariant v : array)
 //   {
 //     JsonObject object = v.as<JsonObject>();
-//     // currentGlucose = obj["Value"];
-//     // String trend = obj["Trend"];
-//     // currentTrend = this->getTrendType(trend);
-//     // currentAdvTrend = this->getAdvTrendType(currentTrend, currentGlucose);
+//        push obj["Value"];
+
+//        String trend = obj["Trend"];
+//        push this->getTrendType(trend);
+
+//        push this->getAdvTrendType(currentTrend, currentGlucose);
 //   }
 
 //   return true;
@@ -181,12 +188,17 @@ bool Dexcom::update()
                     "\",\"minutes\":" + 10 + ",\"maxCount\":" + 1 + "}";
   String results = this->post(DEXCOM_GLUCOSE_READINGS_ENDPOINT, postData.c_str());
 
+  if (currentStatus == SESSION_NOT_FOUND || currentStatus == SESSION_NOT_VALID)
+  {
+    return false;
+  }
+
   String json = results.substring(results.lastIndexOf('['), results.lastIndexOf(']') + 1);
   DynamicJsonDocument doc(1024);
   DeserializationError error = deserializeJson(doc, json.c_str());
   if (error)
   {
-    Serial.println(String(error.f_str()));
+    // Serial.println(String(error.f_str()));
     return false;
   }
 
@@ -195,11 +207,11 @@ bool Dexcom::update()
   currentTrend = this->getTrendType(trend);
   currentAdvTrend = this->getAdvTrendType();
   currentRange = this->getRange();
-
+  
   return currentGlucose > 0;
 }
 
-TrendTypes Dexcom::getTrendType(String trend)
+GlucoseTrend_t Dexcom::getTrendType(String trend)
 {
   if (trend == "DoubleUp")
     return DOUBLE_UP;
@@ -222,7 +234,7 @@ TrendTypes Dexcom::getTrendType(String trend)
   return NOT_COMPUTABLE;
 }
 
-AdvTrendTypes Dexcom::getAdvTrendType()
+AdvGlucoseTrend_t Dexcom::getAdvTrendType()
 {
   switch (currentTrend)
   {
@@ -342,12 +354,16 @@ AdvTrendTypes Dexcom::getAdvTrendType()
   return UNKNOWN;
 }
 
-RangeTypes Dexcom::getRange()
+GlucoseRange_t Dexcom::getRange()
 {
-  if (currentGlucose > (highThreshold + warningThreshold) ||
-      currentGlucose < (lowThreshold - warningThreshold))
+  if (currentGlucose > urgentHighThreshold)
   {
-    return ATTENTION_REQUIRED;
+    return URGENT_HIGH;
+  }
+
+  if (currentGlucose < urgentLowThreshold)
+  {
+    return URGENT_LOW;
   }
 
   if (currentGlucose >= highThreshold)
@@ -364,17 +380,22 @@ RangeTypes Dexcom::getRange()
   }
 }
 
-void Dexcom::setLowThreshold(int threshold)
+void Dexcom::setLowThreshold(int value)
 {
-  lowThreshold = threshold;
+  lowThreshold = value;
 }
 
-void Dexcom::setHighThreshold(int threshold)
+void Dexcom::setHighThreshold(int value)
 {
-  highThreshold = threshold;
+  highThreshold = value;
 }
 
-void Dexcom::setWarningThreshold(int threshold)
+void Dexcom::setUrgentLowThreshold(int value)
 {
-  warningThreshold = threshold;
+  urgentLowThreshold = value;
+}
+
+void Dexcom::setUrgentHighThreshold(int value)
+{
+  urgentHighThreshold = value;
 }
