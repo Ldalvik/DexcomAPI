@@ -1,7 +1,7 @@
 #ifndef Const_h
 #define Const_h
 
-enum StatusTypes
+enum DexcomStatus_t
 {
   LOGGED_OUT,          // Logged out; default value
   LOGGED_IN,           // Succesfully logged in
@@ -14,7 +14,7 @@ enum StatusTypes
   PASSWORD_NULL_EMPTY  // Password NULL or empty
 };
 
-enum TrendTypes
+enum GlucoseTrend_t
 {
     DOUBLE_UP,        // Rising Fast
     SINGLE_UP,        // Rising
@@ -27,15 +27,17 @@ enum TrendTypes
     RATE_OUT_OF_RANGE // Out of range
 };
 
-enum RangeTypes
+enum GlucoseRange_t
 {
+    URGENT_HIGH,
     TOO_HIGH,
     IN_RANGE,
     TOO_LOW,
-    ATTENTION_REQUIRED
+    URGENT_LOW,
 };
 
-enum AdvTrendTypes
+// This is not needed but im gonna keep it, for now
+enum AdvGlucoseTrend_t
 {
     DOUBLE_UP_HIGH,
     DOUBLE_UP_INRANGE,
