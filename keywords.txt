@@ -1,0 +1,60 @@
+Dexcom    KEYWORD1
+
+createSession  KEYWORD2
+getGlucose     KEYWORD2
+getLastGlucose KEYWORD2
+
+HIGH_THRESHOLD        KEYWORD2
+LOW_THRESHOLD         KEYWORD2
+URGENT_HIGH_THRESHOLD KEYWORD2
+URGENT_LOW_THRESHOLD  KEYWORD2
+accountStatus         KEYWORD2
+
+UrgentHigh KEYWORD2
+TooHigh    KEYWORD2
+InRange    KEYWORD2
+TooLow     KEYWORD2
+UrgentLow  KEYWORD2
+
+DoubleUp       KEYWORD2
+SingleUp       KEYWORD2
+FortyFiveUp    KEYWORD2
+Flat           KEYWORD2
+FortyFiveDown  KEYWORD2
+SingleDown     KEYWORD2
+DoubleDown     KEYWORD2
+NotComputable  KEYWORD2
+RateOutOfRange KEYWORD2
+
+DoubleUpHigh         KEYWORD2
+DoubleUpInRange      KEYWORD2
+DoubleUpLow          KEYWORD2
+SingleUpHigh         KEYWORD2
+SingleUpInRange      KEYWORD2
+SingleUpLow          KEYWORD2
+FortyFiveUpHigh      KEYWORD2
+FortyFiveUpInRange   KEYWORD2
+FortyFiveUpLow       KEYWORD2
+FlatHigh             KEYWORD2
+FlatInRange          KEYWORD2
+FlatLow              KEYWORD2
+FortyFiveDownHigh    KEYWORD2
+FortyFiveDownInRange KEYWORD2
+FortyFiveDownLow     KEYWORD2
+SingleDownHigh       KEYWORD2
+SingleDownInRange    KEYWORD2
+SingleDownLow        KEYWORD2
+DoubleDownHigh       KEYWORD2
+DoubleDownInRange    KEYWORD2
+DoubleDownLow        KEYWORD2
+Unknown              KEYWORD2
+
+LoggedOut         KEYWORD2
+LoggedIn          KEYWORD2 
+SessionNotValid   KEYWORD2
+SessionNotFound   KEYWORD2
+AccountNotFound   KEYWORD2 
+PasswordInvalid   KEYWORD2
+MaxAttempts       KEYWORD2
+UsernameNullEmpty KEYWORD2
+PasswordNullEmpty KEYWORD2

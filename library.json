@@ -1,13 +1,13 @@
 {
   "name": "DexcomAPI",
   "version": "1.0",
-  "keywords": "wifi, esp8266",
-  "description": "This library was made for the Feather HUZZAH ESP6266. It controls a 320x240 TFT LCD, RGB LED, and Piezo speaker.",
+  "keywords": "dexcom, esp32",
+  "description": "This library was made to retrieve blood glucose data from the dexcom API.",
   "repository":
   {
     "type": "git",
-    "url": "https://github.com/Ldalvik/GlucoseMonitor-HardwareController.git"
+    "url": "https://github.com/Ldalvik/https://github.com/Ldalvik/ESP32-DexcomAPI.git"
   },
   "frameworks": "arduino",
-  "platforms": ["feather", "huzzah", "espressif8266", "espressif32"]
+  "platforms": ["espressif32"]
 }

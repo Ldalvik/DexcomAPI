@@ -1,50 +1,43 @@
 #include "Dexcom.h"
 
-Dexcom::Dexcom(const char *username, const char *password, bool ous)
+Dexcom::Dexcom(bool ous)
 {
-  _username = username;
-  _password = password;
-
   if (ous)
   {
     _base_url = DEXCOM_BASE_URL_OUS;
   }
 }
 
-bool Dexcom::createSession()
+bool Dexcom::createSession(const String &username, const String &password)
 {
-  String accountId = this->getAccountId();
-  _session_id = this->getSessionId(accountId);
+  String accountId = getAccountId(username, password);
+  _session_id = getSessionId(accountId, password);
 
   if (accountId != "" && _session_id != "")
   {
-    currentStatus = LOGGED_IN;
+    accountStatus = DexcomStatus::LoggedIn;
     return true;
   }
   return false;
 }
 
-String Dexcom::getAccountId()
+String Dexcom::getAccountId(const String &username, const String &password)
 {
-  char postData[256];
-  snprintf(postData,
-           sizeof(postData),
-           "{\"accountName\":\"%s\",\"password\":\"%s\",\"applicationId\":\"%s\"}",
-           _username, _password, DEXCOM_APPLICATION_ID);
+  String postData = "{\"accountName\":\"" + username +
+                    "\",\"password\":\"" + password +
+                    "\",\"applicationId\":\"" + DEXCOM_APPLICATION_ID + "\"}";
 
-  String result = this->post(DEXCOM_AUTHENTICATE_ENDPOINT, postData);
+  String result = this->post(DEXCOM_AUTHENTICATE_ENDPOINT, postData.c_str());
   return this->stripToken(result);
 }
 
-String Dexcom::getSessionId(String accountId)
+String Dexcom::getSessionId(const String &accountId, const String &password)
 {
-  char postData[256];
-  snprintf(postData,
-           sizeof(postData),
-           "{\"accountId\":\"%s\",\"password\":\"%s\",\"applicationId\":\"%s\"}",
-           accountId.c_str(), _password, DEXCOM_APPLICATION_ID);
+  String postData = "{\"accountId\":\"" + accountId +
+                    "\",\"password\":\"" + password +
+                    "\",\"applicationId\":\"" + DEXCOM_APPLICATION_ID + "\"}";
 
-  String result = this->post(DEXCOM_LOGIN_ID_ENDPOINT, postData);
+  String result = this->post(DEXCOM_LOGIN_ID_ENDPOINT, postData.c_str());
   return this->stripToken(result);
 }
 
@@ -83,298 +76,204 @@ String Dexcom::post(const char *url, const char *postData)
            "%s\r\n",
            url, _base_url.c_str(), strlen(postData), postData);
 
-  client.println(httpRequest);
+  client.print(httpRequest);
 
-  String response;
+  bool isChunked = false;
+  int responseCode = 0;
   while (client.connected())
   {
-    if (client.available())
+    String line = client.readStringUntil('\n');
+    line.trim();
+
+    if (line.startsWith("HTTP/1.1"))
     {
-      response += client.readStringUntil('\n');
-      response += '\n';
+      int firstSpace = line.indexOf(' ');
+      responseCode = line.substring(firstSpace + 1, firstSpace + 4).toInt();
+    }
+    else if (line.equalsIgnoreCase("Transfer-Encoding: chunked"))
+    {
+      isChunked = true;
+    }
+  
+    if (line.length() == 0)
+      break;
+  }
+
+  String body;
+  if (isChunked)
+  {
+    while (true)
+    {
+      String lenStr = client.readStringUntil('\n');
+      lenStr.trim();
+      int chunkSize = strtol(lenStr.c_str(), NULL, 16);
+      if (chunkSize <= 0)
+        break;
+
+      for (int i = 0; i < chunkSize; i++)
+      {
+        while (!client.available())
+          delay(1);
+        body += (char)client.read();
+      }
+      client.read();
+      client.read();
+    }
+  }
+  else
+  {
+    while (client.available())
+    {
+      body += client.readString();
     }
   }
   client.stop();
 
-  int responseCode = response.substring(response.indexOf(" ") + 1, response.indexOf(" ") + 4).toInt();
-
   if (responseCode == 500)
   {
-    String json = response.substring(response.indexOf('{'), response.lastIndexOf('}'));
+    String json = body.substring(body.indexOf('{'), body.lastIndexOf('}') + 1);
 
-    if (json.indexOf("SessionNotValid") != -1)
-    {
-      currentStatus = SESSION_NOT_VALID;
-    }
-    if (json.indexOf("sessionIdNotFound") != -1)
-    {
-      currentStatus = SESSION_NOT_FOUND;
-    }
-    if (json.indexOf("SSO_AuthenticateAccountNotFound") != -1)
-    {
-      currentStatus = ACCOUNT_NOT_FOUND;
-    }
-    if (json.indexOf("AccountPasswordInvalid") != -1)
-    {
-      currentStatus = PASSWORD_INVALID;
-    }
-    if (json.indexOf("SSO_AuthenticateMaxAttemptsExceeed") != -1)
-    {
-      currentStatus = MAX_ATTEMPTS;
-    }
+    if (json.indexOf("SessionNotValid") != -1) accountStatus = DexcomStatus::SessionNotValid;
+    if (json.indexOf("sessionIdNotFound") != -1) accountStatus = DexcomStatus::SessionNotFound;
+    if (json.indexOf("SSO_AuthenticateAccountNotFound") != -1) accountStatus = DexcomStatus::AccountNotFound;
+    if (json.indexOf("AccountPasswordInvalid") != -1) accountStatus = DexcomStatus::PasswordInvalid;
+    if (json.indexOf("SSO_AuthenticateMaxAttemptsExceeed") != -1) accountStatus = DexcomStatus::MaxAttempts;
+
     if (json.indexOf("InvalidArgument") != -1)
     {
-      if (json.indexOf("accountName") != -1)
-      {
-        currentStatus = USERNAME_NULL_EMPTY;
-      }
-      else if (json.indexOf("password") != -1)
-      {
-        currentStatus = PASSWORD_NULL_EMPTY;
-      }
+      if (json.indexOf("accountName") != -1) accountStatus = DexcomStatus::UsernameNullEmpty;
+      else if (json.indexOf("password") != -1) accountStatus = DexcomStatus::PasswordNullEmpty;
     }
     return "";
   }
 
-  if (responseCode != 200)
-    return "";
-  return response;
+  if (responseCode != 200) return "";
+  return body;
 }
-
-// bool Dexcom::updateList(int minutes, int maxCount)
-// {
-//   String postData = "{\"sessionId\":\"" + _session_id +
-//                     "\",\"minutes\":" + minutes + ",\"maxCount\":" + maxCount + "}";
-//   String results = this->post(DEXCOM_GLUCOSE_READINGS_ENDPOINT, postData.c_str());
-
-//   String json = results.substring(results.lastIndexOf('['), results.lastIndexOf(']') + 1);
-//   DynamicJsonDocument doc(1024);
-//   DeserializationError error = deserializeJson(doc, json.c_str());
-//   if (error)
-//   {
-//     Serial.println(String(error.f_str()));
-//     return false;
-//   }
-
-//   JsonArray array = doc.as<JsonArray>();
-
-//   int *glucose = {};
-//   String *trend = {};
-//   TrendTypes *currentTrend = {};
-//   AdvTrendTypes *currentAdvTrend = {};
-
-//   for (JsonVariant v : array)
-//   {
-//     JsonObject object = v.as<JsonObject>();
-//     // currentGlucose = obj["Value"];
-//     // String trend = obj["Trend"];
-//     // currentTrend = this->getTrendType(trend);
-//     // currentAdvTrend = this->getAdvTrendType(currentTrend, currentGlucose);
-//   }
-
-//   return true;
-// }
-
-bool Dexcom::update()
+std::vector<GlucoseData> Dexcom::getGlucose(int minutes, int maxCount)
 {
   String postData = "{\"sessionId\":\"" + _session_id +
-                    "\",\"minutes\":" + 10 + ",\"maxCount\":" + 1 + "}";
+                    "\",\"minutes\":" + minutes + ",\"maxCount\":" + maxCount + "}";
   String results = this->post(DEXCOM_GLUCOSE_READINGS_ENDPOINT, postData.c_str());
 
-  String json = results.substring(results.lastIndexOf('['), results.lastIndexOf(']') + 1);
-  DynamicJsonDocument doc(1024);
-  DeserializationError error = deserializeJson(doc, json.c_str());
+  DynamicJsonDocument doc(4096);
+  DeserializationError error = deserializeJson(doc, results);
   if (error)
   {
-    Serial.println(String(error.f_str()));
-    return false;
+    Serial.printf("JSON parse error: %s\n", error.c_str());
+    return {};
   }
 
-  currentGlucose = doc[0]["Value"];
-  String trend = doc[0]["Trend"];
-  currentTrend = this->getTrendType(trend);
-  currentAdvTrend = this->getAdvTrendType();
-  currentRange = this->getRange();
+  JsonArray array = doc.as<JsonArray>();
+  if (array.isNull() || array.size() == 0)
+  {
+    Serial.println("No data");
+    return {};
+  }
 
-  return currentGlucose > 0;
+  size_t count = array.size();
+  std::vector<GlucoseData> data;
+  data.reserve(count);
+
+  for (size_t i = 0; i < count; i++)
+  {
+    JsonObject obj = array[i];
+
+    int glucose = obj["Value"] | -1;
+    String strTrend = obj["Trend"] | "";
+    GlucoseTrend trend = getTrendType(strTrend);
+
+    unsigned long long timestamp = 0;
+    String wtStr = obj["WT"] | "";
+    if (wtStr.startsWith("Date("))
+    {
+      String inner = wtStr.substring(5, wtStr.indexOf(')'));
+      inner.replace("-", "");
+      inner.replace("+", "");
+      timestamp = strtoull(inner.c_str(), nullptr, 10);
+    }
+
+    GlucoseRange range = getRange(glucose);
+    GlucoseAdvTrend advTrend = getAdvTrendType(glucose, trend);
+
+    data.push_back({glucose, trend, advTrend, range, timestamp});
+  }
+
+  return data;
 }
 
-TrendTypes Dexcom::getTrendType(String trend)
+GlucoseData Dexcom::getLastGlucose()
 {
-  if (trend == "DoubleUp")
-    return DOUBLE_UP;
-  if (trend == "SingleUp")
-    return SINGLE_UP;
-  if (trend == "FortyFiveUp")
-    return FORTYFIVE_UP;
-  if (trend == "Flat")
-    return FLAT;
-  if (trend == "FortyFiveDown")
-    return FORTYFIVE_DOWN;
-  if (trend == "SingleDown")
-    return SINGLE_DOWN;
-  if (trend == "DoubleDown")
-    return DOUBLE_DOWN;
-  if (trend == "NotComputable")
-    return NOT_COMPUTABLE;
-  if (trend == "RateOutOfRange")
-    return RATE_OUT_OF_RANGE;
-  return NOT_COMPUTABLE;
+  auto data = getGlucose(10, 1);
+  if (data.empty())
+    return {-1, GlucoseTrend::NotComputable, GlucoseAdvTrend::Unknown, GlucoseRange::InRange, 0};
+
+  return data[0];
 }
 
-AdvTrendTypes Dexcom::getAdvTrendType()
+GlucoseTrend Dexcom::getTrendType(const String &trend)
 {
-  switch (currentTrend)
-  {
-  case DOUBLE_UP:
-  {
-    if (currentGlucose > highThreshold)
-    {
-      return DOUBLE_UP_HIGH;
-    }
-    else if (currentGlucose < highThreshold && currentGlucose > lowThreshold)
-    {
-      return DOUBLE_UP_INRANGE;
-    }
-    else if (currentGlucose < lowThreshold)
-    {
-      return DOUBLE_UP_LOW;
-    }
-  }
-  break;
-  case SINGLE_UP:
-  {
-    if (currentGlucose > highThreshold)
-    {
-      return SINGLE_UP_HIGH;
-    }
-    else if (currentGlucose < highThreshold && currentGlucose > lowThreshold)
-    {
-      return SINGLE_UP_INRANGE;
-    }
-    else if (currentGlucose < lowThreshold)
-    {
-      return SINGLE_UP_LOW;
-    }
-  }
-  break;
-  case FORTYFIVE_UP:
-  {
-    if (currentGlucose > highThreshold)
-    {
-      return FORTYFIVE_UP_HIGH;
-    }
-    else if (currentGlucose < highThreshold && currentGlucose > lowThreshold)
-    {
-      return FORTYFIVE_UP_INRANGE;
-    }
-    else if (currentGlucose < lowThreshold)
-    {
-      return FORTYFIVE_UP_LOW;
-    }
-  }
-  break;
-  case FLAT:
-  {
-    if (currentGlucose > highThreshold)
-    {
-      return FLAT_HIGH;
-    }
-    else if (currentGlucose < highThreshold && currentGlucose > lowThreshold)
-    {
-      return FLAT_INRANGE;
-    }
-    else if (currentGlucose < lowThreshold)
-    {
-      return FLAT_LOW;
-    }
-  }
-  break;
-  case FORTYFIVE_DOWN:
-  {
-    if (currentGlucose > highThreshold)
-    {
-      return FORTYFIVE_DOWN_HIGH;
-    }
-    else if (currentGlucose < highThreshold && currentGlucose > lowThreshold)
-    {
-      return FORTYFIVE_DOWN_INRANGE;
-    }
-    else if (currentGlucose < lowThreshold)
-    {
-      return FORTYFIVE_DOWN_LOW;
-    }
-  }
-  break;
-  case SINGLE_DOWN:
-  {
-    if (currentGlucose > highThreshold)
-    {
-      return SINGLE_DOWN_HIGH;
-    }
-    else if (currentGlucose < highThreshold && currentGlucose > lowThreshold)
-    {
-      return SINGLE_DOWN_INRANGE;
-    }
-    else if (currentGlucose < lowThreshold)
-    {
-      return SINGLE_DOWN_LOW;
-    }
-  }
-  break;
-  case DOUBLE_DOWN:
-  {
-    if (currentGlucose > highThreshold)
-    {
-      return DOUBLE_DOWN_HIGH;
-    }
-    else if (currentGlucose < highThreshold && currentGlucose > lowThreshold)
-    {
-      return DOUBLE_DOWN_INRANGE;
-    }
-    else if (currentGlucose < lowThreshold)
-    {
-      return DOUBLE_DOWN_LOW;
-    }
-  }
-  break;
-  }
-  return UNKNOWN;
+  if (trend == "DoubleUp") return GlucoseTrend::DoubleUp;
+  if (trend == "SingleUp") return GlucoseTrend::SingleUp;
+  if (trend == "FortyFiveUp") return GlucoseTrend::FortyFiveUp;
+  if (trend == "Flat") return GlucoseTrend::Flat;
+  if (trend == "FortyFiveDown") return GlucoseTrend::FortyFiveDown;
+  if (trend == "SingleDown") return GlucoseTrend::SingleDown;
+  if (trend == "DoubleDown") return GlucoseTrend::DoubleDown;
+  if (trend == "NotComputable") return GlucoseTrend::NotComputable;
+  if (trend == "RateOutOfRange") return GlucoseTrend::RateOutOfRange;
+  return GlucoseTrend::NotComputable;
 }
 
-RangeTypes Dexcom::getRange()
+GlucoseAdvTrend Dexcom::getAdvTrendType(int glucose, GlucoseTrend trend)
 {
-  if (currentGlucose > (highThreshold + warningThreshold) ||
-      currentGlucose < (lowThreshold - warningThreshold))
+  switch (trend)
   {
-    return ATTENTION_REQUIRED;
-  }
+  case GlucoseTrend::DoubleUp:
+    if (glucose > HIGH_THRESHOLD) return GlucoseAdvTrend::DoubleUpHigh;
+    else if (glucose > LOW_THRESHOLD) return GlucoseAdvTrend::DoubleUpInRange;
+    else return GlucoseAdvTrend::DoubleUpLow;
 
-  if (currentGlucose >= highThreshold)
-  {
-    return TOO_HIGH;
-  }
-  else if (currentGlucose >= lowThreshold)
-  {
-    return IN_RANGE;
-  }
-  else
-  {
-    return TOO_LOW;
+  case GlucoseTrend::SingleUp:
+    if (glucose > HIGH_THRESHOLD)return GlucoseAdvTrend::SingleUpHigh;
+    else if (glucose > LOW_THRESHOLD)return GlucoseAdvTrend::SingleUpInRange;
+    else return GlucoseAdvTrend::SingleUpLow;
+
+  case GlucoseTrend::FortyFiveUp:
+    if (glucose > HIGH_THRESHOLD) return GlucoseAdvTrend::FortyFiveUpHigh;
+    else if (glucose > LOW_THRESHOLD) return GlucoseAdvTrend::FortyFiveUpInRange;
+    else return GlucoseAdvTrend::FortyFiveUpLow;
+
+  case GlucoseTrend::Flat:
+    if (glucose > HIGH_THRESHOLD) return GlucoseAdvTrend::FlatHigh;
+    else if (glucose > LOW_THRESHOLD) return GlucoseAdvTrend::FlatInRange;
+    else return GlucoseAdvTrend::FlatLow;
+
+  case GlucoseTrend::FortyFiveDown:
+    if (glucose > HIGH_THRESHOLD) return GlucoseAdvTrend::FortyFiveDownHigh;
+    else if (glucose > LOW_THRESHOLD) return GlucoseAdvTrend::FortyFiveDownInRange;
+    else return GlucoseAdvTrend::FortyFiveDownLow;
+
+  case GlucoseTrend::SingleDown:
+    if (glucose > HIGH_THRESHOLD) return GlucoseAdvTrend::SingleDownHigh;
+    else if (glucose > LOW_THRESHOLD) return GlucoseAdvTrend::SingleDownInRange;
+    else return GlucoseAdvTrend::SingleDownLow;
+
+  case GlucoseTrend::DoubleDown:
+    if (glucose > HIGH_THRESHOLD) return GlucoseAdvTrend::DoubleDownHigh;
+    else if (glucose > LOW_THRESHOLD) return GlucoseAdvTrend::DoubleDownInRange;
+    else return GlucoseAdvTrend::DoubleDownLow;
+
+  default: return GlucoseAdvTrend::Unknown;
   }
 }
 
-void Dexcom::setLowThreshold(int threshold)
+GlucoseRange Dexcom::getRange(int glucose)
 {
-  lowThreshold = threshold;
-}
+  if (glucose > URGENT_HIGH_THRESHOLD) return GlucoseRange::UrgentHigh;
+  if (glucose < URGENT_LOW_THRESHOLD) return GlucoseRange::UrgentLow;
+  if (glucose >= HIGH_THRESHOLD) return GlucoseRange::TooHigh;
+  if (glucose >= LOW_THRESHOLD) return GlucoseRange::InRange;
 
-void Dexcom::setHighThreshold(int threshold)
-{
-  highThreshold = threshold;
-}
-
-void Dexcom::setWarningThreshold(int threshold)
-{
-  warningThreshold = threshold;
+  return GlucoseRange::TooLow;
 }

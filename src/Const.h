@@ -1,71 +1,83 @@
 #ifndef Const_h
 #define Const_h
 
-enum StatusTypes
+// Represents the Dexcom session or login status
+enum class DexcomStatus
 {
-  LOGGED_OUT,          // Logged out; default value
-  LOGGED_IN,           // Succesfully logged in
-  SESSION_NOT_VALID,   // Session ID NULL or empty
-  SESSION_NOT_FOUND,   // Session not found
-  ACCOUNT_NOT_FOUND,   // Account not found
-  PASSWORD_INVALID,    // Password incorrect/not valid
-  MAX_ATTEMPTS,        // Maximum authentication attempts exceeded
-  USERNAME_NULL_EMPTY, // Username NULL or empty
-  PASSWORD_NULL_EMPTY  // Password NULL or empty
+    LoggedOut,          // Default, logged out
+    LoggedIn,           // Successfully logged in
+    SessionNotValid,    // Session ID is null or empty
+    SessionNotFound,    // Session not found
+    AccountNotFound,    // Account not found
+    PasswordInvalid,    // Incorrect or invalid password
+    MaxAttempts,        // Maximum authentication attempts exceeded
+    UsernameNullEmpty,  // Username null or empty
+    PasswordNullEmpty   // Password null or empty
 };
 
-enum TrendTypes
+enum class GlucoseAdvTrend
 {
-    DOUBLE_UP,        // Rising Fast
-    SINGLE_UP,        // Rising
-    FORTYFIVE_UP,     // Slightly Rising
-    FLAT,             // Steady
-    FORTYFIVE_DOWN,   // Slightly Falling
-    SINGLE_DOWN,      // Falling
-    DOUBLE_DOWN,      // Falling Fast
-    NOT_COMPUTABLE,   // Value not computable
-    RATE_OUT_OF_RANGE // Out of range
+    DoubleUpHigh,
+    DoubleUpInRange,
+    DoubleUpLow,
+
+    SingleUpHigh,
+    SingleUpInRange,
+    SingleUpLow,
+
+    FortyFiveUpHigh,
+    FortyFiveUpInRange,
+    FortyFiveUpLow,
+
+    FlatHigh,
+    FlatInRange,
+    FlatLow,
+
+    FortyFiveDownHigh,
+    FortyFiveDownInRange,
+    FortyFiveDownLow,
+
+    SingleDownHigh,
+    SingleDownInRange,
+    SingleDownLow,
+
+    DoubleDownHigh,
+    DoubleDownInRange,
+    DoubleDownLow,
+
+    Unknown
 };
 
-enum RangeTypes
+// Represents the trend direction of glucose values
+enum class GlucoseTrend
 {
-    TOO_HIGH,
-    IN_RANGE,
-    TOO_LOW,
-    ATTENTION_REQUIRED
+    DoubleUp,        // Rising Fast
+    SingleUp,        // Rising
+    FortyFiveUp,     // Slightly Rising
+    Flat,            // Steady
+    FortyFiveDown,   // Slightly Falling
+    SingleDown,      // Falling
+    DoubleDown,      // Falling Fast
+    NotComputable,   // Value not computable
+    RateOutOfRange   // Out of range
 };
 
-enum AdvTrendTypes
+enum class GlucoseRange
 {
-    DOUBLE_UP_HIGH,
-    DOUBLE_UP_INRANGE,
-    DOUBLE_UP_LOW,
+    UrgentHigh,
+    TooHigh,
+    InRange,
+    TooLow,
+    UrgentLow
+};
 
-    SINGLE_UP_HIGH,
-    SINGLE_UP_INRANGE,
-    SINGLE_UP_LOW,
-
-    FORTYFIVE_UP_HIGH,
-    FORTYFIVE_UP_INRANGE,
-    FORTYFIVE_UP_LOW,
-
-    FLAT_HIGH,
-    FLAT_INRANGE,
-    FLAT_LOW,
-
-    FORTYFIVE_DOWN_HIGH,
-    FORTYFIVE_DOWN_INRANGE,
-    FORTYFIVE_DOWN_LOW,
-
-    SINGLE_DOWN_HIGH,
-    SINGLE_DOWN_INRANGE,
-    SINGLE_DOWN_LOW,
-
-    DOUBLE_DOWN_HIGH,
-    DOUBLE_DOWN_INRANGE,
-    DOUBLE_DOWN_LOW,
-
-    UNKNOWN
+struct GlucoseData
+{
+    int glucose = -1; 
+    GlucoseTrend trend = GlucoseTrend::NotComputable;
+    GlucoseAdvTrend advTrend = GlucoseAdvTrend::Unknown;
+    GlucoseRange range = GlucoseRange::InRange;
+    unsigned long long timestamp = 0; 
 };
 
 static const char *DEXCOM_BASE_URL = "share2.dexcom.com";
@@ -77,16 +89,16 @@ static const char *DEXCOM_GLUCOSE_READINGS_ENDPOINT = "/ShareWebServices/Service
 static const char *DEXCOM_APPLICATION_ID = "d89443d2-327c-4a6f-89e5-496bbb0317db";
 
 static const char *trendStrings[] = {
-    "None",          // NONE
-    "DoubleUp",      // DOUBLE_UP
-    "SingleUp",      // SINGLE_UP
-    "FortyFiveUp",   // FORTYFIVE_UP
-    "Flat",          // FLAT
-    "FortyFiveDown", // FORTYFIVE_DOWN
-    "SingleDown",    // SINGLE_DOWN
-    "DoubleDown",    // DOUBLE_DOWN
-    "NotComputable", // NOT_COMPUTABLE
-    "RateOutOfRange" // RATE_OUT_OF_RANGE
+    "None",         
+    "DoubleUp",     
+    "SingleUp",     
+    "FortyFiveUp",  
+    "Flat",         
+    "FortyFiveDown",
+    "SingleDown",   
+    "DoubleDown",   
+    "NotComputable",
+    "RateOutOfRange"
 };
 
 static const char *DEXCOM_TREND_ARROWS[] = {"", "↑↑", "↑", "↗", "→", "↘", "↓", "↓↓", "?", "-"};
