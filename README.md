@@ -113,7 +113,7 @@ void printTrend(GlucoseTrend trend) {
 ```
 
 Get glucose range
-```
+```C
 void printRange(GlucoseRange range) {
   switch (range) {
     case GlucoseRange::UrgentHigh: Serial.println("Urgent high"); break;
@@ -137,4 +137,5 @@ void printRange(GlucoseRange range) {
 - Store session token and check for expiration when booted up
 
 - Maybe add safe-guard to stop accidentally sending many requests
+
 
