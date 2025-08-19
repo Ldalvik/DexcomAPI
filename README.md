@@ -1,5 +1,5 @@
 # DexcomAPI
-This library is based off of https://github.com/gagebenne/pydexcom
+This library is based off https://github.com/gagebenne/pydexcom
 
 # HOW TO USE
 Connect to a WiFi network
@@ -135,4 +135,5 @@ void printRange(GlucoseRange range) {
 ## QoL
 - Get session token expiration time, automatically re-auth when needed
 - Store session token and check for expiration when booted up
+
 - Maybe add safe-guard to stop accidentally sending many requests
