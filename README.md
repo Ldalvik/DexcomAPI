@@ -3,7 +3,7 @@ This library is based off https://github.com/gagebenne/pydexcom
 
 # HOW TO USE
 Connect to a WiFi network
-```
+```C
   WiFi.mode(WIFI_STA);
   WiFi.begin("your wifi ssid", "your wifi password");
   while (WiFi.status() != WL_CONNECTED);
@@ -11,7 +11,7 @@ Connect to a WiFi network
 ```
 
 Login to a Dexcom account
-```
+```C
   if (!dexcom.createSession("dexcom user/email/number", "dexcom password")) {
     // See below...
   }
@@ -19,7 +19,7 @@ Login to a Dexcom account
 ```
 
 Get the status of a failed login
-```
+```C
 switch (dexcom.accountStatus) {
     case DexcomStatus::SessionNotValid:   Serial.println("Session ID invalid"); break;
     case DexcomStatus::SessionNotFound:   Serial.println("Session not found"); break;
@@ -33,7 +33,7 @@ switch (dexcom.accountStatus) {
 ```
 
 Get a single reading
-```
+```C
 GlucoseData d = dexcom.getLastGlucose();
 if (d.glucose == -1) return;
 Serial.print("Glucose: ");   Serial.println(d.glucose);
@@ -44,7 +44,7 @@ Serial.print("Timestamp: "); Serial.println(d.timestamp);
 ```
 
 Get multiple readings
-```
+```C
 int readings = 270; // get the last 270 readings. With readings every 5min, it will give us 4 hours of data
 for (auto& d : dexcom.getGlucose(readings * 5, readings)) {
   if (d.glucose == -1) continue;
@@ -57,7 +57,7 @@ for (auto& d : dexcom.getGlucose(readings * 5, readings)) {
 ```
 
 Get advanced trend type
-```
+```C
 void printAdvTrend(GlucoseAdvTrend advTrend) {
   switch (advTrend) {
     case GlucoseAdvTrend::DoubleUpHigh:         Serial.println("HIGH and RISING FAST"); break;
@@ -95,7 +95,7 @@ void printAdvTrend(GlucoseAdvTrend advTrend) {
 ```
 
 Get trend type
-```
+```C
 void printTrend(GlucoseTrend trend) {
   switch (trend) {
     case GlucoseTrend::DoubleUp:      Serial.println("Rising fast"); break;
@@ -137,3 +137,4 @@ void printRange(GlucoseRange range) {
 - Store session token and check for expiration when booted up
 
 - Maybe add safe-guard to stop accidentally sending many requests
+
